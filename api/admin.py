@@ -28,6 +28,7 @@ class PostCurrencyRequestAdmin(ImportExportModelAdmin):
         'pretty_post_data',
         'pretty_return_data',
         'formatted_return_errors',
+        'formatted_return_update',
     )
 
     search_fields = ('code', 'user__username')
@@ -60,7 +61,13 @@ class PostCurrencyRequestAdmin(ImportExportModelAdmin):
 
     formatted_return_errors.short_description = "Erreurs API"
 
-    
+    def formatted_return_update(self, obj):
+        if not obj.api_update:
+            return "-"
+        return mark_safe("<pre>" + json.dumps(obj.api_update, indent=2, ensure_ascii=False) + "</pre>")
+
+    formatted_return_update.short_description = "Update return API"
+   
 @admin.register(PostMarchandiseRequest)
 class PostMarchandiseRequestAdmin(ImportExportModelAdmin):
     list_display = (
@@ -84,6 +91,7 @@ class PostMarchandiseRequestAdmin(ImportExportModelAdmin):
         'pretty_post_data',
         'pretty_return_data',
         'formatted_return_errors',
+        'formatted_return_update',
     )
 
     search_fields = ('code', 'user__username')
@@ -116,3 +124,9 @@ class PostMarchandiseRequestAdmin(ImportExportModelAdmin):
 
     formatted_return_errors.short_description = "Erreurs API"
 
+    def formatted_return_update(self, obj):
+        if not obj.api_update:
+            return "-"
+        return mark_safe("<pre>" + json.dumps(obj.api_update, indent=2, ensure_ascii=False) + "</pre>")
+
+    formatted_return_update.short_description = "Update return API"

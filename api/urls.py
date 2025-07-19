@@ -27,4 +27,7 @@ urlpatterns = [
     path('post-goods-request/error/', post_goods_error_request_view, name='post-error-goods-request'),
     path('post-goods-request/success/', post_goods_success_request_view, name='post-success-goods-request'),
     path('post-goods-request/', post_goods_request_view, name='post-goods-request'),
+
+    path('update-currency/', update_api_currency, name='update_api_currency'),
+    path('update-marchandise/', update_api_marchandise, name='update_api_marchandise'),
 ]

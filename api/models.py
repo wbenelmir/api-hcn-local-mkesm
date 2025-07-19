@@ -105,6 +105,13 @@ class PostCurrencyRequest(models.Model):
         null=True,
         help_text="Liste des erreurs retournées par l’API"
     )
+
+    api_update = models.JSONField(
+        default=dict,
+        blank=True,
+        null=True,
+        help_text="Updat retournées par l’API"
+    )
     
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -193,6 +200,13 @@ class PostMarchandiseRequest(models.Model):
         blank=True,
         null=True,
         help_text="Liste des erreurs retournées par l’API"
+    )
+
+    api_update = models.JSONField(
+        default=dict,
+        blank=True,
+        null=True,
+        help_text="Updat retournées par l’API"
     )
     
     active = models.BooleanField(default=True)

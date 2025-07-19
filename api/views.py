@@ -13,6 +13,7 @@ from rest_framework import status as http_status
 from django.views.decorators.csrf import csrf_exempt
 from .utils import RESULTS__C_SUCCESS_TEST, RESULTS__C_ERROR_TEST, RESULTS__G_SUCCESS_TEST, RESULTS__G_ERROR_TEST
 from django.db.models import Q
+from rest_framework import status
 
 @csrf_exempt
 @api_view(['POST'])
@@ -448,3 +449,38 @@ def test_error_goods(request):
     except ValueError:
         return Response({'error': 'error'}, status=400)
     
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsAdminUser])
+def update_api_currency(request):
+    code = request.data.get('code')
+    new_api_update = request.data.get('api_update')
+
+    if not code or not new_api_update:
+        return Response({"error": "code and api_update are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        obj = PostCurrencyRequest.objects.get(code=code)
+        obj.api_update = new_api_update
+        obj.save()
+        return Response({"message": "api_update updated successfully.", "code": obj.code}, status=200)
+    except PostCurrencyRequest.DoesNotExist:
+        return Response({"error": "No PostCurrencyRequest found with this code."}, status=404)
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsAuthenticated, IsAdminUser])
+def update_api_marchandise(request):
+    code = request.data.get('code')
+    new_api_update = request.data.get('api_update')
+
+    if not code or not new_api_update:
+        return Response({"error": "code and api_update are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        obj = PostMarchandiseRequest.objects.get(code=code)
+        obj.api_update = new_api_update
+        obj.save()
+        return Response({"message": "api_update updated successfully.", "code": obj.code}, status=200)
+    except PostMarchandiseRequest.DoesNotExist:
+        return Response({"error": "No PostMarchandiseRequest found with this code."}, status=404)
