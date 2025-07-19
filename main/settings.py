@@ -193,7 +193,7 @@ DOUANES_POST_DATA_GOODS_TEST_ERROR = "http://127.0.0.1:8001/api/goods/test-error
 
 # LOCAL DOUANES - ANAE
 # LOCAL_API_DOUANES_USER = '9poXzUq1849YNfbP'
-# LOCAL_API_DOUANES_PASSWORD = 'Q£?^Ixo3[*1}=">6:-'
+# LOCAL_API_DOUANES_PASSWORD = 'Q£?^Ixo3[*1}=>6'
 # LOCAL_API_DOUANES_LOGIN_EP = "https://anae.dz/api/auth/" 
 # LOCAL_API_DOUANES_GET_DATA = "https://anae.dz/api/put/"
 
