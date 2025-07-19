@@ -18,11 +18,10 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
-admin.site.site_header = "API MICLAT"
+admin.site.site_header = "API DOUANES"
 
 urlpatterns = [
-    path('PB38Cxq7k-taNQLhdufH4SRY-weKD6ymVpjEvr-TJnUzg92W-ZMFb5/', admin.site.urls),
-    # path('', include('api.urls')),
+    path('D2PTWRZE0B143P8LMT67T/', admin.site.urls),
     path('api/', include('api.urls')),
 ]
 
