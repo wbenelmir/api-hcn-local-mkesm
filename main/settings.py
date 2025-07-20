@@ -192,10 +192,11 @@ DOUANES_POST_DATA_GOODS_TEST_SUCCESS = "http://127.0.0.1:8001/api/goods/test-suc
 DOUANES_POST_DATA_GOODS_TEST_ERROR = "http://127.0.0.1:8001/api/goods/test-error/"
 
 # LOCAL DOUANES - ANAE
-# LOCAL_API_DOUANES_USER = '9poXzUq1849YNfbP'
-# LOCAL_API_DOUANES_PASSWORD = 'Q£?^Ixo3[*1}=>6'
-# LOCAL_API_DOUANES_LOGIN_EP = "https://anae.dz/api/auth/" 
-# LOCAL_API_DOUANES_GET_DATA = "https://anae.dz/api/put/"
+ANAE_DOUANES_USER = '9poXzUq1849YNfbP'
+ANAE_DOUANES_PASSWORD = 'Q£?^Ixo3[*1}=>6'
+ANAE_LOGIN_DOUANES = "http://127.0.0.1:8002/api/" 
+LOCAL_API_DOUANES_PUT_DATA_CURRENCY = "http://127.0.0.1:8002/api/micro-importer/update-currency/"
+LOCAL_API_DOUANES_PUT_DATA_GOODS = "http://127.0.0.1:8002/api/micro-importer/update-marchandise/"
 
 APPEND_SLASH=False
 

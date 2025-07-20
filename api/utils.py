@@ -318,6 +318,17 @@ def douanes_login():
         return {"Authorization": f"Bearer {token}"}
     return None
 
+def anae_login():
+    response = requests.post(
+        settings.ANAE_LOGIN_DOUANES,
+        json={"username": settings.ANAE_DOUANES_USER, "password": settings.ANAE_DOUANES_PASSWORD}
+    )
+    print(f"response-login : {response}")
+    if response.status_code == 200:
+        token = response.json().get('token')
+        return {"Authorization": f"Bearer {token}"}
+    return None
+
 def get_currency_data_test_success(json_data):
     headers = douanes_test_login()
     print(f"headers : {headers}")
@@ -396,3 +407,28 @@ def get_goods_data(json_data):
         return response.json()
     return None
 
+def post_goods_data_anae(json_data):
+    headers = anae_login()
+    print(f"headers : {headers}")
+    if not headers:
+        return None
+
+    endpoint = settings.LOCAL_API_DOUANES_PUT_DATA_GOODS
+    response = requests.post(endpoint, headers=headers, json=json_data)
+    print(f"response: {response.status_code}")
+    if response.status_code == 200:
+        return response.json()
+    return None
+
+def post_currency_data_anae(json_data):
+    headers = anae_login()
+    print(f"headers : {headers}")
+    if not headers:
+        return None
+
+    endpoint = settings.LOCAL_API_DOUANES_PUT_DATA_CURRENCY
+    response = requests.post(endpoint, headers=headers, json=json_data)
+    print(f"response: {response.status_code}")
+    if response.status_code == 200:
+        return response.json()
+    return None

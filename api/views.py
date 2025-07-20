@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, IsAuthenticatedOrReadOnly
 from .models import PostCurrencyRequest, PostMarchandiseRequest
-from .utils import get_currency_data, get_currency_data_test_error, get_currency_data_test_success, get_goods_data, get_goods_data_test_error, get_goods_data_test_success
+from .utils import get_currency_data, get_currency_data_test_error, get_currency_data_test_success, get_goods_data, get_goods_data_test_error, get_goods_data_test_success,post_goods_data_anae, post_currency_data_anae
 from getpass import getpass
 import requests
 from django.conf import settings
@@ -448,7 +448,7 @@ def test_error_goods(request):
         return Response({'result': result})
     except ValueError:
         return Response({'error': 'error'}, status=400)
-    
+
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsAdminUser])
@@ -463,6 +463,17 @@ def update_api_currency(request):
         obj = PostCurrencyRequest.objects.get(code=code)
         obj.api_update = new_api_update
         obj.save()
+
+        try:
+            micro_imp_no = obj.post_data.get('microImpNo')
+            if isinstance(new_api_update, dict):
+                new_api_update['code'] = micro_imp_no
+                post_currency_data_anae(new_api_update)
+            else:
+                return Response({"error": "api_update must be a JSON object (dict)."}, status=400)
+        except requests.RequestException as e:
+            pass
+        
         return Response({"message": "api_update updated successfully.", "code": obj.code}, status=200)
     except PostCurrencyRequest.DoesNotExist:
         return Response({"error": "No PostCurrencyRequest found with this code."}, status=404)
@@ -476,11 +487,20 @@ def update_api_marchandise(request):
 
     if not code or not new_api_update:
         return Response({"error": "code and api_update are required."}, status=status.HTTP_400_BAD_REQUEST)
-
     try:
         obj = PostMarchandiseRequest.objects.get(code=code)
         obj.api_update = new_api_update
         obj.save()
+        try:
+            micro_imp_no = obj.post_data.get('microImpNo')
+            if isinstance(new_api_update, dict):
+                new_api_update['code'] = micro_imp_no
+                post_goods_data_anae(new_api_update)
+            else:
+                return Response({"error": "api_update must be a JSON object (dict)."}, status=400)
+        except requests.RequestException as e:
+            pass
         return Response({"message": "api_update updated successfully.", "code": obj.code}, status=200)
     except PostMarchandiseRequest.DoesNotExist:
         return Response({"error": "No PostMarchandiseRequest found with this code."}, status=404)
+    
