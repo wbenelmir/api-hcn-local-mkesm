@@ -409,7 +409,7 @@ def get_goods_data(json_data):
 
 def post_goods_data_anae(json_data):
     headers = anae_login()
-    print(f"headers : {headers}")
+    print(f"ANAE headers : {headers}")
     if not headers:
         return None
 
@@ -422,7 +422,7 @@ def post_goods_data_anae(json_data):
 
 def post_currency_data_anae(json_data):
     headers = anae_login()
-    print(f"headers : {headers}")
+    print(f"ANAE headers : {headers}")
     if not headers:
         return None
 

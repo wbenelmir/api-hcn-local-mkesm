@@ -455,7 +455,8 @@ def test_error_goods(request):
 def update_api_currency(request):
     code = request.data.get('code')
     new_api_update = request.data.get('api_update')
-
+    update_api_anae = {}
+    update_api_anae['api_update'] = new_api_update
     if not code or not new_api_update:
         return Response({"error": "code and api_update are required."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -465,10 +466,10 @@ def update_api_currency(request):
         obj.save()
 
         try:
-            micro_imp_no = obj.post_data.get('microImpNo')
-            if isinstance(new_api_update, dict):
-                new_api_update['code'] = micro_imp_no
-                post_currency_data_anae(new_api_update)
+            micro_imp_no = obj.post_data.get('microImpDclrNo')
+            if isinstance(update_api_anae, dict):
+                update_api_anae['code'] = micro_imp_no
+                post_currency_data_anae(update_api_anae)
             else:
                 return Response({"error": "api_update must be a JSON object (dict)."}, status=400)
         except requests.RequestException as e:
@@ -484,7 +485,8 @@ def update_api_currency(request):
 def update_api_marchandise(request):
     code = request.data.get('code')
     new_api_update = request.data.get('api_update')
-
+    update_api_anae = {}
+    update_api_anae['api_update'] = new_api_update
     if not code or not new_api_update:
         return Response({"error": "code and api_update are required."}, status=status.HTTP_400_BAD_REQUEST)
     try:
@@ -493,9 +495,9 @@ def update_api_marchandise(request):
         obj.save()
         try:
             micro_imp_no = obj.post_data.get('microImpNo')
-            if isinstance(new_api_update, dict):
-                new_api_update['code'] = micro_imp_no
-                post_goods_data_anae(new_api_update)
+            if isinstance(update_api_anae, dict):
+                update_api_anae['code'] = micro_imp_no
+                post_goods_data_anae(update_api_anae)
             else:
                 return Response({"error": "api_update must be a JSON object (dict)."}, status=400)
         except requests.RequestException as e:
