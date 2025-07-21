@@ -466,12 +466,8 @@ def update_api_currency(request):
         obj.save()
 
         try:
-            micro_imp_no = obj.post_data.get('microImpDclrNo')
-            if isinstance(update_api_anae, dict):
-                update_api_anae['code'] = micro_imp_no
-                post_currency_data_anae(update_api_anae)
-            else:
-                return Response({"error": "api_update must be a JSON object (dict)."}, status=400)
+            update_api_anae['code'] = code
+            post_currency_data_anae(update_api_anae)
         except requests.RequestException as e:
             pass
         
@@ -494,12 +490,8 @@ def update_api_marchandise(request):
         obj.api_update = new_api_update
         obj.save()
         try:
-            micro_imp_no = obj.post_data.get('microImpNo')
-            if isinstance(update_api_anae, dict):
-                update_api_anae['code'] = micro_imp_no
-                post_goods_data_anae(update_api_anae)
-            else:
-                return Response({"error": "api_update must be a JSON object (dict)."}, status=400)
+            update_api_anae['code'] = code
+            post_goods_data_anae(update_api_anae)
         except requests.RequestException as e:
             pass
         return Response({"message": "api_update updated successfully.", "code": obj.code}, status=200)
