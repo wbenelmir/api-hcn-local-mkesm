@@ -453,7 +453,7 @@ def test_error_goods(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsAdminUser])
 def update_api_currency(request):
-    code = request.data.get('code')
+    code = request.data.get('declaration_code')
     new_api_update = request.data.get('api_update')
     update_api_anae = {}
     update_api_anae['api_update'] = new_api_update
@@ -483,7 +483,7 @@ def update_api_currency(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated, IsAdminUser])
 def update_api_marchandise(request):
-    code = request.data.get('code')
+    code = request.data.get('declaration_code')
     new_api_update = request.data.get('api_update')
     update_api_anae = {}
     update_api_anae['api_update'] = new_api_update
