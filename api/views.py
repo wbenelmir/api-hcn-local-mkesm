@@ -23,30 +23,23 @@ def post_currency_request_view(request):
         json_data = request.data
         code_request = request.data.get('code_request', '/')
 
-        existing = PostCurrencyRequest.objects.filter(
-            code_request=code_request,
-            status='200',
-            rstatus='Success'
+        post_instance = PostCurrencyRequest.objects.filter(
+            code=code_request
         ).first()
 
-        if existing:
-            return Response(
-                {
-                    "error": "Ce code_request a déjà été traité.",
-                    "existing_status": existing.status,
-                    "rstatus": existing.rstatus,
-                    "message": existing.message,
-                    "return_data": existing.return_data 
-                },
-                status=http_status.HTTP_409_CONFLICT
+        if post_instance:
+            post_instance.user = request.user
+            post_instance.post_data=json_data
+            post_instance.code_request = code_request
+            post_instance.save()
+        else:
+            post_instance = PostCurrencyRequest.objects.create(
+                user=request.user,
+                post_data=json_data,
+                code_request = code_request,
+                code = code_request,
+                status="pending"
             )
-        
-        post_instance = PostCurrencyRequest.objects.create(
-            user=request.user,
-            post_data=json_data,
-            code_request = code_request,
-            status="pending"
-        )
 
         response_data = get_currency_data(json_data)
 
@@ -88,30 +81,23 @@ def post_currency_success_request_view(request):
         json_data = request.data
         code_request = request.data.get('code_request', '/')
 
-        existing = PostCurrencyRequest.objects.filter(
-            code_request=code_request,
-            status='200',
-            rstatus='Success'
+        post_instance = PostCurrencyRequest.objects.filter(
+            code_request=code_request
         ).first()
 
-        if existing:
-            return Response(
-                {
-                    "error": "Ce code_request a déjà été traité.",
-                    "existing_status": existing.status,
-                    "rstatus": existing.rstatus,
-                    "message": existing.message,
-                    "return_data": existing.return_data 
-                },
-                status=http_status.HTTP_409_CONFLICT
+        if post_instance:
+            post_instance.user = request.user
+            post_instance.post_data=json_data
+            post_instance.code_request = code_request
+            post_instance.save()
+        else:
+            post_instance = PostCurrencyRequest.objects.create(
+                user=request.user,
+                post_data=json_data,
+                code_request = code_request,
+                code = code_request,
+                status="pending"
             )
-        
-        post_instance = PostCurrencyRequest.objects.create(
-            user=request.user,
-            post_data=json_data,
-            code_request = code_request,
-            status="pending"
-        )
 
         response_data = get_currency_data_test_success(json_data)
 
@@ -153,30 +139,23 @@ def post_currency_error_request_view(request):
         json_data = request.data
         code_request = request.data.get('code_request', '/')
 
-        existing = PostCurrencyRequest.objects.filter(
-            code_request=code_request,
-            status='200',
-            rstatus='Success'
+        post_instance = PostCurrencyRequest.objects.filter(
+            code_request=code_request
         ).first()
 
-        if existing:
-            return Response(
-                {
-                    "error": "Ce code_request a déjà été traité.",
-                    "existing_status": existing.status,
-                    "rstatus": existing.rstatus,
-                    "message": existing.message,
-                    "return_data": existing.return_data 
-                },
-                status=http_status.HTTP_409_CONFLICT
+        if post_instance:
+            post_instance.user = request.user
+            post_instance.post_data=json_data
+            post_instance.code_request = code_request
+            post_instance.save()
+        else:
+            post_instance = PostCurrencyRequest.objects.create(
+                user=request.user,
+                post_data=json_data,
+                code_request = code_request,
+                code = code_request,
+                status="pending"
             )
-    
-        post_instance = PostCurrencyRequest.objects.create(
-            user=request.user,
-            post_data=json_data,
-            code_request = code_request,
-            status="pending"
-        )
 
         response_data = get_currency_data_test_error(json_data)
 
@@ -240,30 +219,23 @@ def post_goods_request_view(request):
         json_data = request.data
         code_request = request.data.get('code_request', '/')
 
-        existing = PostMarchandiseRequest.objects.filter(
-            code_request=code_request,
-            status='200',
-            rstatus='Success'
+        post_instance = PostMarchandiseRequest.objects.filter(
+            code_request=code_request
         ).first()
 
-        if existing:
-            return Response(
-                {
-                    "error": "Ce code_request a déjà été traité.",
-                    "existing_status": existing.status,
-                    "rstatus": existing.rstatus,
-                    "message": existing.message,
-                    "return_data": existing.return_data 
-                },
-                status=http_status.HTTP_409_CONFLICT
+        if post_instance:
+            post_instance.user = request.user
+            post_instance.post_data=json_data
+            post_instance.code_request = code_request
+            post_instance.save()
+        else:
+            post_instance = PostMarchandiseRequest.objects.create(
+                user=request.user,
+                post_data=json_data,
+                code_request = code_request,
+                code = code_request,
+                status="pending"
             )
-        
-        post_instance = PostMarchandiseRequest.objects.create(
-            user=request.user,
-            post_data=json_data,
-            code_request = code_request,
-            status="pending"
-        )
 
         response_data = get_goods_data(json_data)
 
@@ -305,30 +277,23 @@ def post_goods_success_request_view(request):
         json_data = request.data
         code_request = request.data.get('code_request', '/')
 
-        existing = PostMarchandiseRequest.objects.filter(
-            code_request=code_request,
-            status='200',
-            rstatus='Success'
+        post_instance = PostMarchandiseRequest.objects.filter(
+            code_request=code_request
         ).first()
 
-        if existing:
-            return Response(
-                {
-                    "error": "Ce code_request a déjà été traité.",
-                    "existing_status": existing.status,
-                    "rstatus": existing.rstatus,
-                    "message": existing.message,
-                    "return_data": existing.return_data 
-                },
-                status=http_status.HTTP_409_CONFLICT
+        if post_instance:
+            post_instance.user = request.user
+            post_instance.post_data=json_data
+            post_instance.code_request = code_request
+            post_instance.save()
+        else:
+            post_instance = PostMarchandiseRequest.objects.create(
+                user=request.user,
+                post_data=json_data,
+                code_request = code_request,
+                code = code_request,
+                status="pending"
             )
-
-        post_instance = PostMarchandiseRequest.objects.create(
-            user=request.user,
-            post_data=json_data,
-            code_request = code_request,
-            status="pending"
-        )
 
         response_data = get_goods_data_test_success(json_data)
 
@@ -370,30 +335,23 @@ def post_goods_error_request_view(request):
         json_data = request.data
         code_request = request.data.get('code_request', '/')
 
-        existing = PostMarchandiseRequest.objects.filter(
-            code_request=code_request,
-            status='200',
-            rstatus='Success'
+        post_instance = PostMarchandiseRequest.objects.filter(
+            code_request=code_request
         ).first()
 
-        if existing:
-            return Response(
-                {
-                    "error": "Ce code_request a déjà été traité.",
-                    "existing_status": existing.status,
-                    "rstatus": existing.rstatus,
-                    "message": existing.message,
-                    "return_data": existing.return_data 
-                },
-                status=http_status.HTTP_409_CONFLICT
+        if post_instance:
+            post_instance.user = request.user
+            post_instance.post_data=json_data
+            post_instance.code_request = code_request
+            post_instance.save()
+        else:
+            post_instance = PostMarchandiseRequest.objects.create(
+                user=request.user,
+                post_data=json_data,
+                code_request = code_request,
+                code = code_request,
+                status="pending"
             )
-        
-        post_instance = PostMarchandiseRequest.objects.create(
-            user=request.user,
-            post_data=json_data,
-            code_request = code_request,
-            status="pending"
-        )
 
         response_data = get_goods_data_test_error(json_data)
 
@@ -458,7 +416,7 @@ def update_api_currency(request):
     update_api_anae = {}
     update_api_anae['api_update'] = new_api_update
     if not code or not new_api_update:
-        return Response({"error": "code and api_update are required."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "declaration_code is required."}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         obj = PostCurrencyRequest.objects.get(code=code)
@@ -471,7 +429,7 @@ def update_api_currency(request):
         except requests.RequestException as e:
             pass
         
-        return Response({"message": "api_update updated successfully.", "code": obj.code}, status=200)
+        return Response({"message": "PostCurrencyRequest updated successfully.", "code": obj.code}, status=200)
     except PostCurrencyRequest.DoesNotExist:
         return Response({"error": "No PostCurrencyRequest found with this code."}, status=404)
 
@@ -480,11 +438,12 @@ def update_api_currency(request):
 @permission_classes([IsAuthenticated, IsAdminUser])
 def update_api_marchandise(request):
     code = request.data.get('declaration_code')
+    print(f"code : {code}")
     new_api_update = request.data
     update_api_anae = {}
     update_api_anae['api_update'] = new_api_update
     if not code or not new_api_update:
-        return Response({"error": "code and api_update are required."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "declaration_code is required."}, status=status.HTTP_400_BAD_REQUEST)
     try:
         obj = PostMarchandiseRequest.objects.get(code=code)
         obj.api_update = new_api_update
@@ -494,7 +453,7 @@ def update_api_marchandise(request):
             post_goods_data_anae(update_api_anae)
         except requests.RequestException as e:
             pass
-        return Response({"message": "api_update updated successfully.", "code": obj.code}, status=200)
+        return Response({"message": "PostMarchandiseRequest updated successfully.", "code": obj.code}, status=200)
     except PostMarchandiseRequest.DoesNotExist:
         return Response({"error": "No PostMarchandiseRequest found with this code."}, status=404)
     
