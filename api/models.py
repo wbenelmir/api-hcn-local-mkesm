@@ -41,7 +41,7 @@ class PostCurrencyRequest(models.Model):
     code = models.CharField(
         max_length=50,
         unique=True,
-        editable=False,
+        editable=True,
         blank=True,
         null=True,
         help_text="Code fourni par l'utilisateur ou par l'application externe"
@@ -137,7 +137,7 @@ class PostMarchandiseRequest(models.Model):
     code = models.CharField(
         max_length=50,
         unique=True,
-        editable=False,
+        editable=True,
         blank=True,
         null=True,
         help_text="Code fourni par l'utilisateur ou par l'application externe"

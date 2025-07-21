@@ -9,6 +9,7 @@ from .models import PostCurrencyRequest, PostMarchandiseRequest
 class PostCurrencyRequestAdmin(ImportExportModelAdmin):
     list_display = (
         'code',
+        'code_request',
         'rstatus',
         'message',
         'status',
@@ -18,7 +19,7 @@ class PostCurrencyRequestAdmin(ImportExportModelAdmin):
     )
 
     readonly_fields = (
-        'code',
+        'code_request',
         'status',
         'rstatus',
         'message',
@@ -72,6 +73,7 @@ class PostCurrencyRequestAdmin(ImportExportModelAdmin):
 class PostMarchandiseRequestAdmin(ImportExportModelAdmin):
     list_display = (
         'code',
+        'code_request',
         'rstatus',
         'message',
         'status',
@@ -81,7 +83,6 @@ class PostMarchandiseRequestAdmin(ImportExportModelAdmin):
     )
 
     readonly_fields = (
-        'code',
         'status',
         'rstatus',
         'message',
