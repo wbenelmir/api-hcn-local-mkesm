@@ -454,7 +454,7 @@ def test_error_goods(request):
 @permission_classes([IsAuthenticated, IsAdminUser])
 def update_api_currency(request):
     code = request.data.get('declaration_code')
-    new_api_update = request.data.get('api_update')
+    new_api_update = request.data
     update_api_anae = {}
     update_api_anae['api_update'] = new_api_update
     if not code or not new_api_update:
@@ -484,7 +484,7 @@ def update_api_currency(request):
 @permission_classes([IsAuthenticated, IsAdminUser])
 def update_api_marchandise(request):
     code = request.data.get('declaration_code')
-    new_api_update = request.data.get('api_update')
+    new_api_update = request.data
     update_api_anae = {}
     update_api_anae['api_update'] = new_api_update
     if not code or not new_api_update:
