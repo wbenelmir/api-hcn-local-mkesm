@@ -51,10 +51,10 @@ def post_currency_request_view(request):
         response_data = get_currency_data(json_data)
 
         if response_data and isinstance(response_data, dict):
-            result = response_data.get("result", {})
-            rstatus = result.get("status", "inconnu")
-            message = result.get("message", "")
-            errors = result.get("errors", [])
+            # result = response_data.get("result", {})
+            rstatus = response_data.get("status", "inconnu")
+            message = response_data.get("message", "")
+            errors = response_data.get("errors", [])
 
             post_instance.return_data = response_data
             post_instance.status = "200"
@@ -268,10 +268,10 @@ def post_goods_request_view(request):
         response_data = get_goods_data(json_data)
 
         if response_data and isinstance(response_data, dict):
-            result = response_data.get("result", {})
-            rstatus = result.get("status", "inconnu")
-            message = result.get("message", "")
-            errors = result.get("errors", [])
+            # result = response_data.get("result", {})
+            rstatus = response_data.get("status", "inconnu")
+            message = response_data.get("message", "")
+            errors = response_data.get("errors", [])
 
             post_instance.return_data = response_data
             post_instance.status = "200"
