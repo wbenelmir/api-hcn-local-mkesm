@@ -137,7 +137,7 @@ def post_currency_success_request_view(request):
 def post_currency_error_request_view(request):
     try:
         json_data = request.data
-        code_request = request.data.get('code_request', '/')
+        code_request = request.data.get('microImpDclrNo', '/')
 
         post_instance = PostCurrencyRequest.objects.filter(
             code_request=code_request
@@ -217,7 +217,7 @@ def test_error_currency(request):
 def post_goods_request_view(request):
     try:
         json_data = request.data
-        code_request = request.data.get('code_request', '/')
+        code_request = request.data.get('microImpDclrNo', '/')
 
         post_instance = PostMarchandiseRequest.objects.filter(
             code_request=code_request
@@ -275,7 +275,7 @@ def post_goods_request_view(request):
 def post_goods_success_request_view(request):
     try:
         json_data = request.data
-        code_request = request.data.get('code_request', '/')
+        code_request = request.data.get('microImpDclrNo', '/')
 
         post_instance = PostMarchandiseRequest.objects.filter(
             code_request=code_request
@@ -333,7 +333,7 @@ def post_goods_success_request_view(request):
 def post_goods_error_request_view(request):
     try:
         json_data = request.data
-        code_request = request.data.get('code_request', '/')
+        code_request = request.data.get('microImpDclrNo', '/')
 
         post_instance = PostMarchandiseRequest.objects.filter(
             code_request=code_request
