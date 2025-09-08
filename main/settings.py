@@ -183,6 +183,7 @@ DOUANES_LOGIN_DOUANES = "http://10.200.1.18:8085/auth/login"
 DOUANES_POST_DATA_CURRENCY = "http://10.200.1.18:8085/api/douane/devise"
 DOUANES_POST_DATA_GOODS = "http://10.200.1.18:8085/api/douane/marchandise"
 
+
 DOUANES_USER_TEST = "douanes"
 DOUANES_PASSWORD_TEST = "U*Nr{7hJR31jW@"
 DOUANES_LOGIN_DOUANES_TEST = "http://127.0.0.1:8001/api/auth/"
@@ -197,6 +198,7 @@ ANAE_DOUANES_PASSWORD = 'Q£?^Ixo3[*1}=>6'
 ANAE_LOGIN_DOUANES = "http://127.0.0.1:8002/api/auth/" 
 LOCAL_API_DOUANES_PUT_DATA_CURRENCY = "http://127.0.0.1:8002/api/micro-importer/update-currency/"
 LOCAL_API_DOUANES_PUT_DATA_GOODS = "http://127.0.0.1:8002/api/micro-importer/update-marchandise/"
+LOCAL_API_DOUANES_PUT_DATA_GOODS_ITEM = "http://10.200.1.18:8085/api/micro-importer/update-goods-item/"
 
 APPEND_SLASH=False
 

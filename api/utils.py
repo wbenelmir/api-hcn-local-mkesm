@@ -432,3 +432,17 @@ def post_currency_data_anae(json_data):
     if response.status_code == 200:
         return response.json()
     return None
+
+def post_goods_item_anae(json_data):
+    headers = anae_login()
+    print(f"ANAE headers : {headers}")
+    if not headers:
+        return None
+
+    endpoint = settings.LOCAL_API_DOUANES_PUT_DATA_GOODS_ITEM
+    response = requests.post(endpoint, headers=headers, json=json_data)
+    print(f"response: {response.status_code}")
+    if response.status_code == 200:
+        return response.json()
+    return None
+

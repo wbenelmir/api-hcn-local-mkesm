@@ -31,4 +31,5 @@ urlpatterns = [
 
     path('update-currency/', update_api_currency, name='update_api_currency'),
     path('update-marchandise/', update_api_marchandise, name='update_api_marchandise'),
+    path('update-goods-item/', update_api_goods, name='import-update-api-goods'),
 ]
