@@ -83,7 +83,7 @@ def select_list(cfg) -> str:
 TABLES = {
     "nesda": {
         "schema": "public",
-        "db_table": "nesda",
+        "db_table": "BeneficiaryNESDA",
         "pk": "id",
         "columns": {
             "PrenomAr_P",
@@ -103,7 +103,7 @@ TABLES = {
     },
     "angem": {
         "schema": "public",
-        "db_table": "angem",  # Mixed case => must be quoted; q_ident handles it
+        "db_table": "Promoteurs",  # Mixed case => must be quoted; q_ident handles it
         "pk": "id",
         "columns": {
             "prenom_ar",
