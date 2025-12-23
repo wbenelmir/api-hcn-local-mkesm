@@ -176,33 +176,6 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": datetime.timedelta(minutes=1), # days=1
 }
 
-# DOUANES (PRODUCTION)
-DOUANES_USER = "cntsid01"
-DOUANES_PASSWORD = "Dou@n3Micro!mprot2025"
-DOUANES_LOGIN_DOUANES = "http://10.200.1.18:8085/auth/login"
-DOUANES_POST_DATA_CURRENCY = "http://10.200.1.18:8085/api/douane/devise"
-DOUANES_POST_DATA_GOODS = "http://10.200.1.18:8085/api/douane/marchandise"
-
-
-DOUANES_USER_TEST = "douanes"
-DOUANES_PASSWORD_TEST = "U*Nr{7hJR31jW@"
-DOUANES_LOGIN_DOUANES_TEST = "http://127.0.0.1:8001/api/auth/"
-DOUANES_POST_DATA_CURRENCY_TEST_SUCCESS = "http://127.0.0.1:8001/api/currency/test-success/"
-DOUANES_POST_DATA_CURRENCY_TEST_ERROR = "http://127.0.0.1:8001/api/currency/test-error/"
-DOUANES_POST_DATA_GOODS_TEST_SUCCESS = "http://127.0.0.1:8001/api/goods/test-success/"
-DOUANES_POST_DATA_GOODS_TEST_ERROR = "http://127.0.0.1:8001/api/goods/test-error/"
-
-# LOCAL DOUANES - ANAE
-ANAE_DOUANES_USER = '9poXzUq1849YNfbP'
-ANAE_DOUANES_PASSWORD = 'Q£?^Ixo3[*1}=>6'
-ANAE_LOGIN_DOUANES = "http://127.0.0.1:8002/api/auth/" 
-LOCAL_API_DOUANES_PUT_DATA_CURRENCY = "http://127.0.0.1:8002/api/micro-importer/update-currency/"
-LOCAL_API_DOUANES_PUT_DATA_GOODS = "http://127.0.0.1:8002/api/micro-importer/update-marchandise/"
-LOCAL_API_DOUANES_PUT_DATA_GOODS_ITEM = "http://10.200.1.18:8085/api/micro-importer/update-goods-item/"
-
 APPEND_SLASH = True
-
-### douanes
-### U*Nr{7hJR31jW@
 
 
