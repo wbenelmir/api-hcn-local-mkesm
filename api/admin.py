@@ -137,7 +137,6 @@ class PostMarchandiseRequestAdmin(ImportExportModelAdmin):
 
     formatted_return_update.short_description = "Update return API"
 
-
 @admin.register(Unit)
 class UnitAdmin(ImportExportModelAdmin):
     list_display = (
@@ -158,8 +157,6 @@ class UnitAdmin(ImportExportModelAdmin):
         'is_active',
 
     )
-
-
 
 # -------- GoodsItem --------
 @admin.register(GoodsItem)
