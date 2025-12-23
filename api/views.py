@@ -17,580 +17,424 @@ from .utils import RESULTS__C_SUCCESS_TEST, RESULTS__C_ERROR_TEST, RESULTS__G_SU
 from django.db.models import Q
 from rest_framework import status
 from django.db import transaction
+from django.db import connection, transaction
+# ---------- helpers ----------
 
-@csrf_exempt
-@api_view(['POST'])
-@permission_classes([IsAuthenticated, IsAdminUser])
-def post_currency_request_view(request):
-    try:
-        json_data = request.data
-        code_request = request.data.get('microImpDclrNo', '/')
+def dictfetchall(cursor):
+    cols = [c[0] for c in cursor.description]
+    return [dict(zip(cols, row)) for row in cursor.fetchall()]
 
-        post_instance = PostCurrencyRequest.objects.filter(
-            code=code_request
-        ).first()
+def dictfetchone(cursor):
+    row = cursor.fetchone()
+    if row is None:
+        return None
+    cols = [c[0] for c in cursor.description]
+    return dict(zip(cols, row))
 
-        if post_instance:
-            post_instance.user = request.user
-            post_instance.post_data=json_data
-            post_instance.code_request = code_request
-            post_instance.save()
-        else:
-            post_instance = PostCurrencyRequest.objects.create(
-                user=request.user,
-                post_data=json_data,
-                code_request = code_request,
-                code = code_request,
-                status="pending"
-            )
+def q_ident(name: str) -> str:
+    # Quote identifier for Postgres (still must whitelist!)
+    return '"' + name.replace('"', '""') + '"'
 
-        response_data = get_currency_data(json_data)
+# ---------- table configs (whitelists) ----------
 
-        if response_data and isinstance(response_data, dict):
-            # result = response_data.get("result", {})
-            rstatus = response_data.get("status", "inconnu")
-            message = response_data.get("message", "")
-            errors = response_data.get("errors", [])
+TABLES = {
+    "nesda": {
+        "schema": "public",
+        "db_table": "nesda",
+        "pk": "id",
+        "columns": {
+            "PrenomAr_P", "NomAr_P", "birth_date", "Num_Act", "Code_Commune_Nais",
+            "PrenomFr_P", "NomFr_P", "NIN", "date_finance", "type_finance",
+            "NumNesda", "DDN_P",
+        },
+        "default_order_by": "id",
+    },
 
-            post_instance.return_data = response_data
-            post_instance.status = "200"
-            post_instance.rstatus = rstatus
-            post_instance.message = message
-            post_instance.errors = errors 
-            post_instance.save()
+    "angem": {
+        "schema": "public",
+        "db_table": "angem",
+        "pk": "id",
+        "columns": {
+            "prenom_ar", "nom_ar", "acte", "code_commune",
+            "prenom", "nom", "nin",
+            "type_finance", "date_naissance", "date_financement",
+        },
+        "default_order_by": "id",
+    },
+}
 
-            return Response(response_data, status=200)
-        else:
-            post_instance.status = "500"
-            post_instance.save()
-            return Response(
-                {'error': 'Erreur de connexion à l’API douanière.'},
-                status=http_status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+def get_cfg(table_key: str):
+    return TABLES.get(table_key)
 
-    except Exception as e:
-        post_instance.status = "400"
-        post_instance.save()
+def full_table_name(cfg) -> str:
+    return f"{q_ident(cfg['schema'])}.{q_ident(cfg['db_table'])}"
+
+def select_list(cfg) -> str:
+    # If you want specific columns only, set cfg["select_columns"] = {...}
+    cols = cfg.get("select_columns")
+    if not cols:
+        return "*"
+    # whitelist enforcement:
+    safe = [c for c in cols if c == cfg["pk"] or c in cfg["columns"]]
+    return ", ".join(q_ident(c) for c in safe)
+
+# ---------- endpoints ----------
+
+TABLES = {
+    "nesda": {
+        "schema": "public",
+        "db_table": "nesda",
+        "pk": "id",
+        "columns": {
+            "PrenomAr_P",
+            "NomAr_P",
+            "birth_date",
+            "Num_Act",
+            "Code_Commune_Nais",
+            "PrenomFr_P",
+            "NomFr_P",
+            "NIN",
+            "date_finance",
+            "type_finance",
+            "NumNesda"
+        },
+        "default_order_by": "id",
+        "max_limit": 500,
+    },
+    "angem": {
+        "schema": "public",
+        "db_table": "angem",  # Mixed case => must be quoted; q_ident handles it
+        "pk": "id",
+        "columns": {
+            "prenom_ar",
+            "nom_ar",
+            "acte",
+            "code_commune",
+            "prenom",
+            "nom",
+            "nin",
+            "type_finance",
+            "date_naissance",
+            "date_financement",
+        },
+        "default_order_by": "id",
+        "max_limit": 500,
+    }
+}
+
+def parse_dates(request):
+    date_from = request.query_params.get("from")  # "YYYY-MM-DD"
+    date_to = request.query_params.get("to")      # "YYYY-MM-DD"
+    if not date_from or not date_to:
+        return None, None, Response(
+            {"error": "use query params ?from=YYYY-MM-DD&to=YYYY-MM-DD"},
+            status=400
+        )
+    return date_from, date_to, None
+
+@api_view(["GET"])
+def nesda_by_date_finance(request, table_key: str):
+    """
+    GET /api/nesda/by-date/?from=2025-01-01&to=2025-12-31
+    Filters by nesda.date_finance (date)
+    """
+    if table_key not in  {"angem"}:
+        return Response({"error": "unknown table"}, status=400)
+    
+    cfg = get_cfg("nesda")
+    date_from, date_to, err = parse_dates(request)
+    if err:
+        return err
+
+    sql = f"""
+        SELECT *
+        FROM {full_table_name(cfg)}
+        WHERE {q_ident("date_finance")} BETWEEN %s AND %s
+        ORDER BY {q_ident("id")} DESC
+        LIMIT 1000
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, [date_from, date_to])
+        rows = dictfetchall(cursor)
+
+    return Response({"ok": True, "count": len(rows), "results": rows}, status=200)
+
+def get_cfg(table_key: str):
+    return TABLES.get(table_key)
+
+@api_view(["GET", "POST"])
+def nesda_collection(request, table_key: str):
+    
+    if table_key not in  {"nesda"}:
+        return Response({"error": "unknown table"}, status=400)
+
+    cfg = get_cfg(table_key)
+    if not cfg:
+        return Response({"error": "unknown table"}, status=400)
+
+    if request.method == "GET":
+        order_by = cfg.get("default_order_by", cfg["pk"])
+        if order_by != cfg["pk"] and order_by not in cfg["columns"]:
+            order_by = cfg["pk"]
+
+        sql = f"""
+            SELECT *
+            FROM {full_table_name(cfg)}
+            ORDER BY {q_ident(order_by)} DESC
+        """
+
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            rows = dictfetchall(cursor)
+
         return Response(
-            {'error': str(e)},
-            status=http_status.HTTP_400_BAD_REQUEST
+            {"ok": True, "count": len(rows), "results": rows},
+            status=200
         )
 
-@csrf_exempt
-@api_view(['POST'])
-@permission_classes([IsAuthenticated, IsAdminUser])
-def post_currency_success_request_view(request):
-    try:
-        json_data = request.data
-        code_request = request.data.get('microImpDclrNo', '/')
+    # ---------- POST INSERT ----------
+    payload = request.data or {}
+    data = {k: payload[k] for k in payload.keys() if k in cfg["columns"]}
 
-        post_instance = PostCurrencyRequest.objects.filter(
-            code_request=code_request
-        ).first()
+    if not data:
+        return Response({"error": "no allowed fields provided"}, status=400)
 
-        if post_instance:
-            post_instance.user = request.user
-            post_instance.post_data=json_data
-            post_instance.code_request = code_request
-            post_instance.save()
-        else:
-            post_instance = PostCurrencyRequest.objects.create(
-                user=request.user,
-                post_data=json_data,
-                code_request = code_request,
-                code = code_request,
-                status="pending"
-            )
+    cols = list(data.keys())
+    vals = [data[c] for c in cols]
 
-        response_data = get_currency_data_test_success(json_data)
+    cols_sql = ", ".join(q_ident(c) for c in cols)
+    placeholders = ", ".join(["%s"] * len(cols))
 
-        if response_data and isinstance(response_data, dict):
-            result = response_data.get("result", {})
-            rstatus = result.get("status", "inconnu")
-            message = result.get("message", "")
-            errors = result.get("errors", [])
-
-            post_instance.return_data = response_data
-            post_instance.status = "200"
-            post_instance.rstatus = rstatus
-            post_instance.message = message
-            post_instance.errors = errors 
-            post_instance.save()
-
-            return Response(response_data, status=200)
-        else:
-            post_instance.status = "500"
-            post_instance.save()
-            return Response(
-                {'error': 'Erreur de connexion à l’API douanière.'},
-                status=http_status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-    except Exception as e:
-        post_instance.status = "400"
-        post_instance.save()
-        return Response(
-            {'error': str(e)},
-            status=http_status.HTTP_400_BAD_REQUEST
-        )
-    
-@csrf_exempt
-@api_view(['POST'])
-@permission_classes([IsAuthenticated, IsAdminUser])
-def post_currency_error_request_view(request):
-    try:
-        json_data = request.data
-        code_request = request.data.get('microImpDclrNo', '/')
-
-        post_instance = PostCurrencyRequest.objects.filter(
-            code_request=code_request
-        ).first()
-
-        if post_instance:
-            post_instance.user = request.user
-            post_instance.post_data=json_data
-            post_instance.code_request = code_request
-            post_instance.save()
-        else:
-            post_instance = PostCurrencyRequest.objects.create(
-                user=request.user,
-                post_data=json_data,
-                code_request = code_request,
-                code = code_request,
-                status="pending"
-            )
-
-        response_data = get_currency_data_test_error(json_data)
-
-        if response_data and isinstance(response_data, dict):
-            result = response_data.get("result", {})
-            rstatus = result.get("status", "inconnu")
-            message = result.get("message", "")
-            errors = result.get("errors", [])
-
-            post_instance.return_data = response_data
-            post_instance.status = "200"
-            post_instance.rstatus = rstatus
-            post_instance.message = message
-            post_instance.errors = errors 
-            post_instance.save()
-
-            return Response(response_data, status=200)
-        else:
-            post_instance.status = "500"
-            post_instance.save()
-            return Response(
-                {'error': 'Erreur de connexion à l’API douanière.'},
-                status=http_status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-    except Exception as e:
-        post_instance.status = "400"
-        post_instance.save()
-        return Response(
-            {'error': str(e)},
-            status=http_status.HTTP_400_BAD_REQUEST
-        )
-    
-@csrf_exempt
-@api_view(['POST']) 
-@permission_classes([IsAuthenticated, IsAdminUser])
-def test_success_currency(request):
-    result = {}
-    try:
-        result = RESULTS__C_SUCCESS_TEST
-        return Response({'result': result})
-    except ValueError:
-        return Response({'error': 'error'}, status=400)
-    
-@csrf_exempt
-@api_view(['POST']) 
-@permission_classes([IsAuthenticated, IsAdminUser])
-def test_error_currency(request):
-    result = {}
-    try:
-        result = RESULTS__C_ERROR_TEST
-        return Response({'result': result})
-    except ValueError:
-        return Response({'error': 'error'}, status=400)
-     
-@csrf_exempt
-@api_view(['POST'])
-@permission_classes([IsAuthenticated, IsAdminUser])
-def post_goods_request_view(request):
-    try:
-        json_data = request.data
-        code_request = request.data.get('microImpDclrNo', '/')
-
-        post_instance = PostMarchandiseRequest.objects.filter(
-            code_request=code_request
-        ).first()
-
-        if post_instance:
-            post_instance.user = request.user
-            post_instance.post_data=json_data
-            post_instance.code_request = code_request
-            post_instance.save()
-        else:
-            post_instance = PostMarchandiseRequest.objects.create(
-                user=request.user,
-                post_data=json_data,
-                code_request = code_request,
-                code = code_request,
-                status="pending"
-            )
-
-        response_data = get_goods_data(json_data)
-
-        if response_data and isinstance(response_data, dict):
-            # result = response_data.get("result", {})
-            rstatus = response_data.get("status", "inconnu")
-            message = response_data.get("message", "")
-            errors = response_data.get("errors", [])
-
-            post_instance.return_data = response_data
-            post_instance.status = "200"
-            post_instance.rstatus = rstatus
-            post_instance.message = message
-            post_instance.errors = errors 
-            post_instance.save()
-
-            return Response(response_data, status=200)
-        else:
-            post_instance.status = "500"
-            post_instance.save()
-            return Response(
-                {'error': 'Erreur de connexion à l’API douanière.'},
-                status=http_status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-    except Exception as e:
-        post_instance.status = "400"
-        post_instance.save()
-        return Response(
-            {'error': str(e)},
-            status=http_status.HTTP_400_BAD_REQUEST
-        )
-
-@csrf_exempt
-@api_view(['POST'])
-@permission_classes([IsAuthenticated, IsAdminUser])
-def post_goods_success_request_view(request):
-    try:
-        json_data = request.data
-        code_request = request.data.get('microImpDclrNo', '/')
-
-        post_instance = PostMarchandiseRequest.objects.filter(
-            code_request=code_request
-        ).first()
-
-        if post_instance:
-            post_instance.user = request.user
-            post_instance.post_data=json_data
-            post_instance.code_request = code_request
-            post_instance.save()
-        else:
-            post_instance = PostMarchandiseRequest.objects.create(
-                user=request.user,
-                post_data=json_data,
-                code_request = code_request,
-                code = code_request,
-                status="pending"
-            )
-
-        response_data = get_goods_data_test_success(json_data)
-
-        if response_data and isinstance(response_data, dict):
-            result = response_data.get("result", {})
-            rstatus = result.get("status", "inconnu")
-            message = result.get("message", "")
-            errors = result.get("errors", [])
-
-            post_instance.return_data = response_data
-            post_instance.status = "200"
-            post_instance.rstatus = rstatus
-            post_instance.message = message
-            post_instance.errors = errors 
-            post_instance.save()
-
-            return Response(response_data, status=200)
-        else:
-            post_instance.status = "500"
-            post_instance.save()
-            return Response(
-                {'error': 'Erreur de connexion à l’API douanière.'},
-                status=http_status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-    except Exception as e:
-        post_instance.status = "400"
-        post_instance.save()
-        return Response(
-            {'error': str(e)},
-            status=http_status.HTTP_400_BAD_REQUEST
-        )
-    
-@csrf_exempt
-@api_view(['POST'])
-@permission_classes([IsAuthenticated, IsAdminUser])
-def post_goods_error_request_view(request):
-    try:
-        json_data = request.data
-        code_request = request.data.get('microImpDclrNo', '/')
-
-        post_instance = PostMarchandiseRequest.objects.filter(
-            code_request=code_request
-        ).first()
-
-        if post_instance:
-            post_instance.user = request.user
-            post_instance.post_data=json_data
-            post_instance.code_request = code_request
-            post_instance.save()
-        else:
-            post_instance = PostMarchandiseRequest.objects.create(
-                user=request.user,
-                post_data=json_data,
-                code_request = code_request,
-                code = code_request,
-                status="pending"
-            )
-
-        response_data = get_goods_data_test_error(json_data)
-
-        if response_data and isinstance(response_data, dict):
-            result = response_data.get("result", {})
-            rstatus = result.get("status", "inconnu")
-            message = result.get("message", "")
-            errors = result.get("errors", [])
-
-            post_instance.return_data = response_data
-            post_instance.status = "200"
-            post_instance.rstatus = rstatus
-            post_instance.message = message
-            post_instance.errors = errors 
-            post_instance.save()
-
-            return Response(response_data, status=200)
-        else:
-            post_instance.status = "500"
-            post_instance.save()
-            return Response(
-                {'error': 'Erreur de connexion à l’API douanière.'},
-                status=http_status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-    except Exception as e:
-        post_instance.status = "400"
-        post_instance.save()
-        return Response(
-            {'error': str(e)},
-            status=http_status.HTTP_400_BAD_REQUEST
-        )
-    
-@csrf_exempt
-@api_view(['POST']) 
-@permission_classes([IsAuthenticated, IsAdminUser])
-def test_success_goods(request):
-    result = {}
-    try:
-        result = RESULTS__G_SUCCESS_TEST
-        return Response({'result': result})
-    except ValueError:
-        return Response({'error': 'error'}, status=400)
-    
-@csrf_exempt
-@api_view(['POST']) 
-@permission_classes([IsAuthenticated, IsAdminUser])
-def test_error_goods(request):
-    result = {}
-    try:
-        result = RESULTS__G_ERROR_TEST
-        return Response({'result': result})
-    except ValueError:
-        return Response({'error': 'error'}, status=400)
-
-@csrf_exempt
-@api_view(['POST'])
-@permission_classes([IsAuthenticated, IsAdminUser])
-def update_api_currency(request):
-    code = request.data.get('declaration_code')
-    new_api_update = request.data
-    update_api_anae = {}
-    update_api_anae['api_update'] = new_api_update
-    if not code or not new_api_update:
-        return Response({"error": "declaration_code is required."}, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        obj = PostCurrencyRequest.objects.get(code=code)
-        obj.api_update = new_api_update
-        obj.save()
-
-        try:
-            update_api_anae['code'] = code
-            post_currency_data_anae(update_api_anae)
-        except requests.RequestException as e:
-            pass
-        
-        return Response({"message": "PostCurrencyRequest updated successfully.", "code": obj.code}, status=200)
-    except PostCurrencyRequest.DoesNotExist:
-        return Response({"error": "No PostCurrencyRequest found with this code."}, status=404)
-
-@csrf_exempt
-@api_view(['POST'])
-@permission_classes([IsAuthenticated, IsAdminUser])
-def update_api_marchandise(request):
-    code = request.data.get('declaration_code')
-    print(f"code : {code}")
-    new_api_update = request.data
-    update_api_anae = {}
-    update_api_anae['api_update'] = new_api_update
-    if not code or not new_api_update:
-        return Response({"error": "declaration_code is required."}, status=status.HTTP_400_BAD_REQUEST)
-    try:
-        obj = PostMarchandiseRequest.objects.get(code=code)
-        obj.api_update = new_api_update
-        obj.save()
-        try:
-            update_api_anae['code'] = code
-            post_goods_data_anae(update_api_anae)
-        except requests.RequestException as e:
-            pass
-        return Response({"message": "PostMarchandiseRequest updated successfully.", "code": obj.code}, status=200)
-    except PostMarchandiseRequest.DoesNotExist:
-        return Response({"error": "No PostMarchandiseRequest found with this code."}, status=404)
-    
-@csrf_exempt
-@api_view(['POST'])
-@permission_classes([IsAuthenticated, IsAdminUser])
-def update_api_goods(request):
-    payload = request.data
-    if not isinstance(payload, dict):
-        return Response({"error": "Invalid JSON body."}, status=status.HTTP_400_BAD_REQUEST)
-
-    pdls = payload.get("pdls") or {}
-    if not isinstance(pdls, dict):
-        return Response({"error": "'pdls' must be an object."}, status=status.HTTP_400_BAD_REQUEST)
-
-    # ----- Declaration number (required) -----
-    # accept either top-level "microImpDclrNo" or "declaration" (tolerant key)
-    declaration_no = (payload.get("microImpDclrNo") or payload.get("declaration") or "").strip()
-    if not declaration_no:
-        return Response({"error": "microImpDclrNo is required at top-level."}, status=status.HTTP_400_BAD_REQUEST)
-
-
-    # ----- Accept code from pdls or top-level -----
-    code = (pdls.get("code") or payload.get("code") or "").strip()
-    if not code:
-        return Response({"error": "code is required in 'pdls.code' (or top-level)."}, status=status.HTTP_400_BAD_REQUEST)
-
-    # ----- Extract pdls fields (tolerant keys) -----
-    name = (pdls.get("pdlsNm") or pdls.get("name") or "").strip() or None
-    qty = pdls.get("qty")
-    qty_ut_cd = (pdls.get("qtyUtCd") or "").strip() or None
-    currency = (pdls.get("frxcgCurrCd") or pdls.get("currency") or "").strip().upper() or None
-    ut_decl_amt = pdls.get("utDclrAmt")     # unit value declared (foreign currency)
-    unit_val_dzd = pdls.get("unitValDzd")   # optional
-    line_val_dzd = pdls.get("lineValDzd")   # optional
-
-    # ----- Casting helpers -----
-    def to_decimal(v, field):
-        if v is None:
-            return None
-        try:
-            return Decimal(str(v))
-        except (InvalidOperation, ValueError, TypeError):
-            raise ValueError(f"'{field}' must be a number.")
-
-    try:
-        qty_int = int(qty) if qty is not None else None
-    except (ValueError, TypeError):
-        return Response({"error": "'qty' must be an integer."}, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        ut_decl_amt_dec = to_decimal(ut_decl_amt, "utDclrAmt") if ut_decl_amt is not None else None
-        unit_val_dzd_dec = to_decimal(unit_val_dzd, "unitValDzd") if unit_val_dzd is not None else None
-        line_val_dzd_dec = to_decimal(line_val_dzd, "lineValDzd") if line_val_dzd is not None else None
-    except ValueError as e:
-        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-    # ----- Required fields check -----
-    missing = []
-    if name is None: missing.append("pdlsNm")
-    if qty_int is None: missing.append("qty")
-    if qty_ut_cd is None: missing.append("qtyUtCd")
-    if currency is None: missing.append("frxcgCurrCd")
-    if ut_decl_amt_dec is None: missing.append("utDclrAmt")
-    if missing:
-        return Response({"error": "Missing required pdls fields.", "fields": missing}, status=status.HTTP_400_BAD_REQUEST)
-
-    # ----- Back-calc per-unit DZD if only total and qty provided -----
-    if unit_val_dzd_dec is None and line_val_dzd_dec is not None and qty_int:
-        unit_val_dzd_dec = (line_val_dzd_dec / Decimal(qty_int)).quantize(Decimal("0.001"))
-
-    # ----- Optional Unit resolution (if you have a Unit model) -----
-    # unit = None
-    # if qty_ut_cd:
-    #     unit = Unit.objects.filter(
-    #         Q(code__iexact=qty_ut_cd) | Q(abbr__iexact=qty_ut_cd) | Q(name__iexact=qty_ut_cd)
-    #     ).first()
-    #     if not unit:
-    #         return Response({"error": "Unknown unit.", "qtyUtCd": qty_ut_cd}, status=status.HTTP_400_BAD_REQUEST)
+    sql = f"""
+        INSERT INTO {full_table_name(cfg)} ({cols_sql})
+        VALUES ({placeholders})
+        RETURNING *
+    """
 
     with transaction.atomic():
-        obj, created = GoodsItem.objects.select_for_update().get_or_create(
-            code=code,
-            defaults={
-                "name": name,
-                "quantity": qty_int,
-                "unit": qty_ut_cd,           # or unit if using Unit FK
-                "currency": currency,
-                "unit_value_declared": ut_decl_amt_dec,
-                # store declaration
-                "declaration": declaration_no,    # if CharField, use: declaration_no
-                **({"unit_value_dzd": unit_val_dzd_dec} if unit_val_dzd_dec is not None else {}),
-                "json_after": payload,
-            },
+        with connection.cursor() as cursor:
+            cursor.execute(sql, vals)
+            row = dictfetchone(cursor)
+
+    return Response({"ok": True, "row": row}, status=status.HTTP_201_CREATED)
+
+@api_view(["GET", "PUT", "PATCH"])
+def nesda_item(request, table_key: str, row_id: int):
+    """
+    GET   /api/<table_key>/<id>/  -> get one
+    PATCH /api/<table_key>/<id>/  -> update one
+    PUT   /api/<table_key>/<id>/  -> update one
+    """
+    if table_key not in  {"nesda"}:
+        return Response({"error": "unknown table"}, status=400)
+
+    cfg = get_cfg(table_key)
+    if not cfg:
+        return Response({"error": "unknown table"}, status=400)
+
+    pk = cfg["pk"]
+
+    if request.method == "GET":
+        sql = f"""
+            SELECT *
+            FROM {full_table_name(cfg)}
+            WHERE {q_ident(pk)} = %s
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(sql, [row_id])
+            row = dictfetchone(cursor)
+
+        if row is None:
+            return Response({"error": "not found"}, status=404)
+
+        return Response({"ok": True, "row": row}, status=200)
+
+    # UPDATE
+    payload = request.data or {}
+    data = {k: payload[k] for k in payload.keys() if k in cfg["columns"]}
+    if not data:
+        return Response({"error": "no allowed fields provided"}, status=400)
+
+    set_sql = ", ".join(f"{q_ident(col)} = %s" for col in data.keys())
+    vals = list(data.values()) + [row_id]
+
+    sql = f"""
+        UPDATE {full_table_name(cfg)}
+        SET {set_sql}
+        WHERE {q_ident(pk)} = %s
+        RETURNING *
+    """
+
+    with transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute(sql, vals)
+            row = dictfetchone(cursor)
+
+    if row is None:
+        return Response({"error": "not found"}, status=404)
+
+    return Response({"ok": True, "row": row}, status=200)
+
+@api_view(["GET", "POST"])
+def angem_collection(request, table_key: str):
+    
+    if table_key not in  {"angem"}:
+        return Response({"error": "unknown table"}, status=400)
+    
+    cfg = get_cfg(table_key)
+    if not cfg:
+        return Response({"error": "unknown table"}, status=400)
+
+    if request.method == "GET":
+        order_by = cfg.get("default_order_by", cfg["pk"])
+        if order_by != cfg["pk"] and order_by not in cfg["columns"]:
+            order_by = cfg["pk"]
+
+        sql = f"""
+            SELECT *
+            FROM {full_table_name(cfg)}
+            ORDER BY {q_ident(order_by)} DESC
+        """
+
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            rows = dictfetchall(cursor)
+
+        return Response({"ok": True, "count": len(rows), "results": rows}, status=200)
+
+    # POST insert
+    payload = request.data or {}
+    data = {k: payload[k] for k in payload.keys() if k in cfg["columns"]}
+    if not data:
+        return Response({"error": "no allowed fields provided"}, status=400)
+
+    cols = list(data.keys())
+    vals = [data[c] for c in cols]
+
+    cols_sql = ", ".join(q_ident(c) for c in cols)
+    placeholders = ", ".join(["%s"] * len(cols))
+
+    sql = f"""
+        INSERT INTO {full_table_name(cfg)} ({cols_sql})
+        VALUES ({placeholders})
+        RETURNING *
+    """
+
+    with transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute(sql, vals)
+            row = dictfetchone(cursor)
+
+    return Response({"ok": True, "row": row}, status=status.HTTP_201_CREATED)
+
+@api_view(["GET", "PATCH", "PUT"])
+def angem_item(request, table_key: str, row_id: int):
+
+    if table_key not in  {"angem"}:
+        return Response({"error": "unknown table"}, status=400)
+    
+    cfg = get_cfg(table_key)
+    if not cfg:
+        return Response({"error": "unknown table"}, status=400)
+
+    pk = cfg["pk"]
+
+    if request.method == "GET":
+        sql = f"""
+            SELECT *
+            FROM {full_table_name(cfg)}
+            WHERE {q_ident(pk)} = %s
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(sql, [row_id])
+            row = dictfetchone(cursor)
+
+        if row is None:
+            return Response({"error": "not found"}, status=404)
+
+        return Response({"ok": True, "row": row}, status=200)
+
+    # UPDATE
+    payload = request.data or {}
+    data = {k: payload[k] for k in payload.keys() if k in cfg["columns"]}
+    if not data:
+        return Response({"error": "no allowed fields provided"}, status=400)
+
+    set_sql = ", ".join(f"{q_ident(col)} = %s" for col in data.keys())
+    vals = list(data.values()) + [row_id]
+
+    sql = f"""
+        UPDATE {full_table_name(cfg)}
+        SET {set_sql}
+        WHERE {q_ident(pk)} = %s
+        RETURNING *
+    """
+
+    with transaction.atomic():
+        with connection.cursor() as cursor:
+            cursor.execute(sql, vals)
+            row = dictfetchone(cursor)
+
+    if row is None:
+        return Response({"error": "not found"}, status=404)
+
+    return Response({"ok": True, "row": row}, status=200)
+
+@api_view(["GET"])
+def angem_by_date_finance(request, table_key: str):
+    """
+    GET /api/angem/by-date/?from=2024-01-01&to=2024-12-31
+    Filters by angem.date_financement (varchar -> date)
+    """
+
+    if table_key not in  {"angem"}:
+        return Response({"error": "unknown table"}, status=400)
+
+    cfg = get_cfg("angem")
+    if not cfg:
+        return Response({"error": "unknown table"}, status=400)
+
+    date_from = request.query_params.get("from")
+    date_to = request.query_params.get("to")
+
+    if not date_from or not date_to:
+        return Response(
+            {"error": "use ?from=YYYY-MM-DD&to=YYYY-MM-DD"},
+            status=400
         )
 
-        if not created:
-            obj.name = name
-            obj.quantity = qty_int
-            obj.unit = qty_ut_cd             # or unit
-            obj.currency = currency
-            obj.unit_value_declared = ut_decl_amt_dec
-            if unit_val_dzd_dec is not None:
-                obj.unit_value_dzd = unit_val_dzd_dec
-            obj.declaration = declaration_no   # if CharField: declaration_no
-            obj.json_after = payload
-            obj.save()
+    sql = f"""
+        SELECT *
+        FROM {full_table_name(cfg)}
+        WHERE NULLIF({q_ident("date_financement")}, '')::date
+              BETWEEN %s AND %s
+        ORDER BY {q_ident("id")} DESC
+    """
 
-    # Post-hook (non-fatal)
-    try:
-        post_goods_item_anae(payload)
-    except requests.RequestException:
-        pass
+    with connection.cursor() as cursor:
+        cursor.execute(sql, [date_from, date_to])
+        rows = dictfetchall(cursor)
 
-    # Safe serialization helpers
-    def iso(dt):
-        if dt is None:
-            return None
-        # ensure naive in server tz or convert to ISO string
-        return (make_naive(dt) if is_naive(dt) else dt).isoformat()
+    return Response(
+        {"ok": True, "count": len(rows), "results": rows},
+        status=200
+    )
 
-    response_data = {
-        "message": "GoodsItem created successfully." if created else "GoodsItem updated successfully.",
-        "created": created,
-        "code": obj.code,
-        "name": obj.name,
-        "quantity": obj.quantity,
-        "unit": getattr(obj.unit, "code", str(obj.unit)) if obj.unit else None,
-        "currency": obj.currency,
-        "unit_value_declared": str(obj.unit_value_declared) if obj.unit_value_declared is not None else None,
-        "unit_value_dzd": str(obj.unit_value_dzd) if obj.unit_value_dzd is not None else None,
-        "total_value_dzd": str(getattr(obj, "total_value_dzd", None)) if getattr(obj, "total_value_dzd", None) is not None else None,
-        # return declaration number (handles FK or CharField)
-        "declaration": getattr(obj.declaration, "number", obj.declaration) if getattr(obj, "declaration", None) else None,
-        "updated_at": iso(getattr(obj, "updated_at", None)),
-    }
-    return Response(response_data, status=status.HTTP_200_OK)
+# ---------------- Optional: convenience endpoints per table ----------------
+# If you want fixed routes like /api/nesda/ without <table_key>, use these:
+
+@api_view(["GET", "POST"])
+def nesda(request):
+    return nesda_collection(request, "nesda")
+
+@api_view(["GET", "PUT", "PATCH"])
+def nesda_one(request, row_id: int):
+    return nesda_item(request, "nesda", row_id)
+
+@api_view(["GET", "POST"])
+def promoteurs(request):
+    return nesda_collection(request, "promoteurs")
+
+@api_view(["GET", "PUT", "PATCH"])
+def promoteurs_one(request, row_id: int):
+    return nesda_item(request, "promoteurs", row_id)

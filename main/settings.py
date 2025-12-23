@@ -21,7 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-%6oy(c1ec(1tw5f1q!(jn*&7%=nw6i&+-k=tw8#@s_@#9*f-pr'
+SECRET_KEY = 'django-insecure-%6oy(c1Ac(1tw5f1q!(jn*&7%=nw6i&+-9=tw8#@s_@#9*f-pr'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -92,7 +92,7 @@ WSGI_APPLICATION = 'main.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'api_douanes',
+        'NAME': 'hcn_local_mkesm',
         'USER': 'postgres',
         'PASSWORD': '7895123',
         'HOST': 'localhost'
@@ -200,7 +200,7 @@ LOCAL_API_DOUANES_PUT_DATA_CURRENCY = "http://127.0.0.1:8002/api/micro-importer/
 LOCAL_API_DOUANES_PUT_DATA_GOODS = "http://127.0.0.1:8002/api/micro-importer/update-marchandise/"
 LOCAL_API_DOUANES_PUT_DATA_GOODS_ITEM = "http://10.200.1.18:8085/api/micro-importer/update-goods-item/"
 
-APPEND_SLASH=False
+APPEND_SLASH = True
 
 ### douanes
 ### U*Nr{7hJR31jW@

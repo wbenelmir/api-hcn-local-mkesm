@@ -21,7 +21,7 @@ from django.conf.urls.static import static
 admin.site.site_header = "API DOUANES"
 
 urlpatterns = [
-    path('D2PTWRZE0B143P8LMT67T/', admin.site.urls),
+    path('HCNLTWRZE0B143P8LMT67T/', admin.site.urls),
     path('api/', include('api.urls')),
 ]
 
