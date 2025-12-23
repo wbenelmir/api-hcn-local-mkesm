@@ -19,7 +19,7 @@ urlpatterns = [
     ### NESDA endpoints
     path("nesda/<str:table_key>/", nesda_collection),
     path("nesda/<str:table_key>/<int:row_id>/", nesda_item),
-    path("nesda/by-date/", nesda_by_date_finance),
+    path("nesda/<str:table_key>/by-date/", nesda_by_date_finance),
 
     ### NESDA endpoints
     path("angem/<str:table_key>/", angem_collection),

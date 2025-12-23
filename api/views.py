@@ -3,6 +3,8 @@ from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAdminUser, IsAuthenticatedOrReadOnly
+
+from api.permissions import IsANGEMGroup, IsNESDAGroup
 from .models import *
 from django.utils.timezone import is_naive, make_naive
 from .utils import get_currency_data, get_currency_data_test_error, get_currency_data_test_success, get_goods_data, get_goods_data_test_error, get_goods_data_test_success,post_goods_data_anae, post_currency_data_anae, post_goods_item_anae
@@ -133,26 +135,32 @@ def parse_dates(request):
     return date_from, date_to, None
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated, IsNESDAGroup])
 def nesda_by_date_finance(request, table_key: str):
     """
     GET /api/nesda/by-date/?from=2025-01-01&to=2025-12-31
     Filters by nesda.date_finance (date)
     """
-    if table_key not in  {"angem"}:
+    if table_key not in  {"nesda"}:
         return Response({"error": "unknown table"}, status=400)
     
-    cfg = get_cfg("nesda")
-    date_from, date_to, err = parse_dates(request)
-    if err:
-        return err
+    cfg = get_cfg(table_key)
+    if not cfg:
+        return Response({"error": "unknown table"}, status=400)
+
+    date_from = request.query_params.get("from")
+    date_to = request.query_params.get("to")
+
+    if not date_from or not date_to:
+        return Response({"error": "use ?from=YYYY-MM-DD&to=YYYY-MM-DD"}, status=400)
 
     sql = f"""
         SELECT *
         FROM {full_table_name(cfg)}
         WHERE {q_ident("date_finance")} BETWEEN %s AND %s
         ORDER BY {q_ident("id")} DESC
-        LIMIT 1000
     """
+
     with connection.cursor() as cursor:
         cursor.execute(sql, [date_from, date_to])
         rows = dictfetchall(cursor)
@@ -163,6 +171,7 @@ def get_cfg(table_key: str):
     return TABLES.get(table_key)
 
 @api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated, IsNESDAGroup])
 def nesda_collection(request, table_key: str):
     
     if table_key not in  {"nesda"}:
@@ -219,6 +228,7 @@ def nesda_collection(request, table_key: str):
     return Response({"ok": True, "row": row}, status=status.HTTP_201_CREATED)
 
 @api_view(["GET", "PUT", "PATCH"])
+@permission_classes([IsAuthenticated, IsNESDAGroup])
 def nesda_item(request, table_key: str, row_id: int):
     """
     GET   /api/<table_key>/<id>/  -> get one
@@ -276,6 +286,7 @@ def nesda_item(request, table_key: str, row_id: int):
     return Response({"ok": True, "row": row}, status=200)
 
 @api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated, IsANGEMGroup])
 def angem_collection(request, table_key: str):
     
     if table_key not in  {"angem"}:
@@ -328,6 +339,7 @@ def angem_collection(request, table_key: str):
     return Response({"ok": True, "row": row}, status=status.HTTP_201_CREATED)
 
 @api_view(["GET", "PATCH", "PUT"])
+@permission_classes([IsAuthenticated, IsANGEMGroup])
 def angem_item(request, table_key: str, row_id: int):
 
     if table_key not in  {"angem"}:
@@ -381,16 +393,16 @@ def angem_item(request, table_key: str, row_id: int):
     return Response({"ok": True, "row": row}, status=200)
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated, IsANGEMGroup])
 def angem_by_date_finance(request, table_key: str):
     """
     GET /api/angem/by-date/?from=2024-01-01&to=2024-12-31
-    Filters by angem.date_financement (varchar -> date)
     """
 
-    if table_key not in  {"angem"}:
+    if table_key not in {"angem"}:
         return Response({"error": "unknown table"}, status=400)
 
-    cfg = get_cfg("angem")
+    cfg = get_cfg(table_key)
     if not cfg:
         return Response({"error": "unknown table"}, status=400)
 
@@ -406,9 +418,12 @@ def angem_by_date_finance(request, table_key: str):
     sql = f"""
         SELECT *
         FROM {full_table_name(cfg)}
-        WHERE NULLIF({q_ident("date_financement")}, '')::date
-              BETWEEN %s AND %s
-        ORDER BY {q_ident("id")} DESC
+        WHERE
+            date_financement IS NOT NULL
+            AND date_financement <> ''
+            AND to_date(date_financement, 'YYYY-MM-DD')
+                BETWEEN %s AND %s
+        ORDER BY id DESC
     """
 
     with connection.cursor() as cursor:
